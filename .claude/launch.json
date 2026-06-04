@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend",
+      "runtimeExecutable": "C:/Program Files/nodejs/node.exe",
+      "env": { "PATH": "C:/Program Files/nodejs;C:/Windows/System32;C:/Windows" },
+      "runtimeArgs": ["C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js", "run", "dev"],
+      "cwd": "C:/Users/amull/Documents/bark battle/frontend",
+      "port": 3000,
+      "autoPort": true
+    }
+  ]
+}

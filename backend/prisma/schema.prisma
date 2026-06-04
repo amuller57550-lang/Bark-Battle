@@ -1,0 +1,169 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum League {
+  BRONZE_BONE
+  SILVER_KENNEL
+  GOLD_KIBBLE
+  PLATINUM_JAW
+  DIAMOND_ALPHA
+  DOG_KING
+}
+
+enum BotDifficulty {
+  PUPPY
+  GUARD_DOG
+  ALPHA_WOLF
+  CERBERUS
+}
+
+enum BadgeRarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+enum ShopItemType {
+  BADGE
+  TITLE
+  FRAME
+  EFFECT
+  ANIMATION
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique @db.VarChar(30)
+  email        String   @unique
+  passwordHash String?
+  googleId     String?  @unique
+  discordId    String?  @unique
+  avatarUrl    String?
+  title        String?
+  frameEffect  String?
+
+  // Stats
+  league       League  @default(BRONZE_BONE)
+  rp           Int     @default(500)
+  wins         Int     @default(0)
+  losses       Int     @default(0)
+  winStreak    Int     @default(0)
+  currentStreak Int    @default(0)
+  biggestBark  Float   @default(0)
+
+  // Currency
+  bones        Int     @default(100)
+  premium      Int     @default(0)
+
+  // Metadata
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  lastActive   DateTime @default(now())
+  isBanned     Boolean  @default(false)
+
+  // Relations
+  matchesAsP1  Match[]  @relation("Player1")
+  matchesAsP2  Match[]  @relation("Player2")
+  badges       UserBadge[]
+  inventory    UserInventory[]
+
+  @@index([rp])
+  @@index([league])
+}
+
+model Match {
+  id          String   @id @default(uuid())
+  player1Id   String
+  player2Id   String
+  winnerId    String?
+  isBot       Boolean  @default(false)
+  botDifficulty BotDifficulty?
+
+  player1Score Float
+  player2Score Float
+  player1RpChange Int  @default(0)
+  player2RpChange Int  @default(0)
+
+  player1Metrics Json
+  player2Metrics Json
+  bonuses        Json @default("[]")
+
+  duration    Int      // seconds
+  createdAt   DateTime @default(now())
+
+  player1     User     @relation("Player1", fields: [player1Id], references: [id])
+  player2     User?    @relation("Player2", fields: [player2Id], references: [id])
+
+  @@index([player1Id])
+  @@index([player2Id])
+  @@index([createdAt])
+}
+
+model Badge {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  description String
+  icon        String
+  rarity      BadgeRarity
+  condition   Json
+
+  userBadges  UserBadge[]
+}
+
+model UserBadge {
+  id          String   @id @default(uuid())
+  userId      String
+  badgeId     String
+  unlockedAt  DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+  badge       Badge    @relation(fields: [badgeId], references: [id])
+
+  @@unique([userId, badgeId])
+}
+
+model ShopItem {
+  id          String       @id @default(uuid())
+  name        String
+  description String
+  type        ShopItemType
+  rarity      BadgeRarity
+  priceB      Int          @default(0)  // Bones price
+  priceP      Int          @default(0)  // Premium price
+  preview     String?
+  isActive    Boolean      @default(true)
+
+  inventory   UserInventory[]
+}
+
+model UserInventory {
+  id          String   @id @default(uuid())
+  userId      String
+  itemId      String
+  purchasedAt DateTime @default(now())
+  isEquipped  Boolean  @default(false)
+
+  user        User     @relation(fields: [userId], references: [id])
+  item        ShopItem @relation(fields: [itemId], references: [id])
+
+  @@unique([userId, itemId])
+}
+
+model WeeklyLeaderboard {
+  id        String   @id @default(uuid())
+  userId    String
+  weekStart DateTime
+  rp        Int
+  wins      Int
+  createdAt DateTime @default(now())
+
+  @@unique([userId, weekStart])
+  @@index([weekStart, rp])
+}

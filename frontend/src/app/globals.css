@@ -1,0 +1,104 @@
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bark-orange: #f97316;
+  --bark-dark: #1c1917;
+  --bark-card: rgba(41,37,36,0.9);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #1c1917;
+  color: #fafaf9;
+  font-family: 'Nunito', sans-serif;
+  overflow-x: hidden;
+}
+
+.font-display {
+  font-family: 'Bangers', cursive;
+  letter-spacing: 0.05em;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #292524; }
+::-webkit-scrollbar-thumb { background: #57534e; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #78716c; }
+
+/* Glass morphism card */
+.glass-card {
+  background: rgba(41, 37, 36, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(249, 115, 22, 0.15);
+  border-radius: 16px;
+}
+
+/* Bark meter gradient */
+.bark-meter-fill {
+  background: linear-gradient(90deg, #ea580c 0%, #f97316 40%, #fbbf24 80%, #fff 100%);
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.7);
+  transition: width 0.08s linear;
+}
+
+/* Audio wave bars */
+.wave-bar {
+  width: 4px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #fff 0%, #f97316 100%);
+  transform-origin: bottom;
+}
+
+/* League badge shine */
+.league-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.league-shine::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 40%;
+  height: 200%;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.3) 50%, transparent 60%);
+  animation: shine 3s infinite;
+}
+
+@keyframes shine {
+  0% { left: -60%; }
+  100% { left: 160%; }
+}
+
+/* Neon text */
+.neon-text {
+  text-shadow: 0 0 7px #f97316, 0 0 10px #f97316, 0 0 21px #f97316;
+}
+
+/* Particles background */
+.bg-particles {
+  background-image: radial-gradient(circle at 25% 25%, rgba(249,115,22,0.08) 0%, transparent 50%),
+                    radial-gradient(circle at 75% 75%, rgba(217,70,239,0.06) 0%, transparent 50%);
+}
+
+/* Victory flash */
+@keyframes victoryFlash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.victory-flash {
+  animation: victoryFlash 0.5s ease-in-out 3;
+}
+
+/* Smooth transitions */
+.page-enter {
+  animation: slideUp 0.4s ease-out;
+}

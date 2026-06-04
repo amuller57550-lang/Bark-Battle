@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\frontend\\\\src\\\\app\\\\login\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\frontend\\\\src\\\\app\\\\dashboard\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\frontend\\\\src\\\\app\\\\matchmaking\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\frontend\\\\src\\\\app\\\\battle\\\\[id]\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\frontend\\\\src\\\\app\\\\leaderboard\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\frontend\\\\src\\\\app\\\\profile\\\\[id]\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\frontend\\\\src\\\\app\\\\shop\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\frontend\\\\src\\\\components\\\\layout\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\frontend\\\\src\\\\components\\\\ui\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\frontend\\\\src\\\\components\\\\battle\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\frontend\\\\src\\\\components\\\\matchmaking\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\frontend\\\\src\\\\hooks\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\frontend\\\\src\\\\lib\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\frontend\\\\src\\\\store\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\frontend\\\\src\\\\types\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\backend\\\\src\\\\auth\\\\guards\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\backend\\\\src\\\\users\\\\dto\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\backend\\\\src\\\\matches\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\backend\\\\src\\\\matchmaking\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\backend\\\\src\\\\battle\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\backend\\\\src\\\\leaderboard\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\backend\\\\src\\\\elo\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\backend\\\\src\\\\scoring\" \"C:\\\\Users\\\\amull\\\\Documents\\\\bark battle\\\\backend\\\\prisma\")",
+      "Bash(npm install *)",
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"User\"\\); node --version; npm --version)",
+      "mcp__Claude_Preview__preview_start",
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"User\"\\); $pgBin = \\(Get-ChildItem \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\" -ErrorAction SilentlyContinue\\) | Select-Object -First 1 | Select-Object -ExpandProperty DirectoryName; Write-Output \"PG bin: $pgBin\"; $env:PATH = \"$pgBin;$env:PATH\"; psql --version 2>&1)",
+      "mcp__Claude_in_Chrome__list_connected_browsers",
+      "Bash(ls \"/c/Program Files/nodejs/\" 2>/dev/null | head -5 || ls \"/c/Program Files/nodejs\" 2>/dev/null | head -5)"
+    ]
+  }
+}
