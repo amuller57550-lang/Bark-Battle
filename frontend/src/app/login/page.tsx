@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -9,7 +9,7 @@ import { useAuthStore } from "@/store/authStore";
 import { authAPI } from "@/lib/api";
 import toast from "react-hot-toast";
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const params = useSearchParams();
   const [isRegister, setIsRegister] = useState(params.get("register") === "true");
@@ -49,7 +49,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-particles relative overflow-hidden">
-      {/* Background decoration */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-bark-600/8 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-paw-600/6 rounded-full blur-3xl pointer-events-none" />
 
@@ -64,7 +63,6 @@ export default function LoginPage() {
           animate={{ opacity: 1, y: 0 }}
           className="glass-card p-8 space-y-6"
         >
-          {/* Header */}
           <div className="text-center space-y-2">
             <div className="text-5xl mb-3">🐾</div>
             <h1 className="font-display text-4xl text-white">
@@ -77,7 +75,6 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* OAuth buttons */}
           <div className="space-y-3">
             <button className="w-full flex items-center justify-center gap-3 bg-white/10 hover:bg-white/15 border border-white/20 text-white font-semibold py-3 px-4 rounded-xl transition-all">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -103,7 +100,6 @@ export default function LoginPage() {
             <div className="flex-1 h-px bg-bone-700" />
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <AnimatePresence>
               {isRegister && (
@@ -112,9 +108,7 @@ export default function LoginPage() {
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
                 >
-                  <label className="block text-sm font-semibold text-bone-300 mb-1.5">
-                    Pseudo
-                  </label>
+                  <label className="block text-sm font-semibold text-bone-300 mb-1.5">Pseudo</label>
                   <div className="relative">
                     <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-bone-500" />
                     <input
@@ -180,7 +174,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Toggle */}
           <p className="text-center text-bone-400 text-sm">
             {isRegister ? "Déjà un compte ?" : "Pas encore de compte ?"}{" "}
             <button
@@ -193,5 +186,13 @@ export default function LoginPage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><span className="text-4xl">🐾</span></div>}>
+      <LoginContent />
+    </Suspense>
   );
 }

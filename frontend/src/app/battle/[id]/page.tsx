@@ -1,7 +1,6 @@
 "use client";
-export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { Suspense, useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Volume2, VolumeX } from "lucide-react";
@@ -19,7 +18,7 @@ import toast from "react-hot-toast";
 const ROUND_DURATION = 30;
 const COUNTDOWN_DURATION = 3;
 
-export default function BattlePage() {
+function BattleContent() {
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -469,5 +468,13 @@ export default function BattlePage() {
         />
       )}
     </div>
+  );
+}
+
+export default function BattlePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><span className="text-4xl animate-pulse">🐾</span></div>}>
+      <BattleContent />
+    </Suspense>
   );
 }

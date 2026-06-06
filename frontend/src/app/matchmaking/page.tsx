@@ -1,7 +1,6 @@
 "use client";
-export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/store/authStore";
@@ -15,7 +14,7 @@ type Mode = "ranked" | "private" | "bot" | null;
 
 const DOTS = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
-export default function MatchmakingPage() {
+function MatchmakingContent() {
   const { user } = useAuthStore();
   const router = useRouter();
   const params = useSearchParams();
@@ -286,5 +285,13 @@ export default function MatchmakingPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function MatchmakingPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><span className="text-4xl animate-pulse">🐾</span></div>}>
+      <MatchmakingContent />
+    </Suspense>
   );
 }
