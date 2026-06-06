@@ -7,6 +7,15 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    outputFileTracingExcludes: {
+      '*': [
+        'node_modules/@swc/core*',
+        'node_modules/typescript',
+        'node_modules/prettier',
+      ],
+    },
+  },
   images: {
     domains: ["lh3.googleusercontent.com", "cdn.discordapp.com", "avatars.githubusercontent.com"],
   },
