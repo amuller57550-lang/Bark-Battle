@@ -38,7 +38,6 @@ export function useWebRTC(socket: React.MutableRefObject<Socket | null>) {
         }
       };
 
-      // @ts-expect-error - onicecandidateerror exists at runtime but may be missing from lib.dom typings
       pc.onicecandidateerror = (e: RTCPeerConnectionIceErrorEvent) => {
         // eslint-disable-next-line no-console
         console.warn(`[webrtc] ICE candidate error (${tag}):`, e.errorCode, e.errorText, e.url);

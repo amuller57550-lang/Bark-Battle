@@ -14,6 +14,7 @@ import { BarkMeter } from "@/components/battle/BarkMeter";
 import { VictoryScreen } from "@/components/battle/VictoryScreen";
 import { BattleState, BonusEvent, BONUS_CONFIG, BOT_CONFIG, BotDifficulty } from "@/types";
 import { calculateBotScore, calculateScore, rollRandomBonus } from "@/lib/scoring";
+import { playBotBark, playBotVictoryBark } from "@/lib/barkSounds";
 import toast from "react-hot-toast";
 
 const ROUND_DURATION = 10;
@@ -289,6 +290,12 @@ function BattleContent() {
       const botVol = Math.max(0, Math.min(100,
         botCfg.avgVolume + (Math.random() - 0.5) * 30 * botCfg.aggressiveness
       ));
+      // Play a bot-specific bark sound whenever the bot is "barking" — each
+      // difficulty has its own synthesized voice (see lib/barkSounds.ts), and
+      // playback is internally throttled so it sounds like discrete barks.
+      if (botVol > 10) {
+        playBotBark(botDifficulty);
+      }
       setBattle((prev) => {
         if (!prev) return prev;
         return {
@@ -366,6 +373,7 @@ function BattleContent() {
       });
       setRpChange(iWin ? 15 : -10);
       setPhase("END");
+      if (!iWin) playBotVictoryBark(botDifficulty);
     }
     // For online matches, wait for the server's authoritative `battle:end`
     // event (handled by c5) which carries the real scores/winner/RP — setting
