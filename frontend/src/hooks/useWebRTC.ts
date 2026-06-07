@@ -54,9 +54,29 @@ export function useWebRTC(socket: React.MutableRefObject<Socket | null>) {
     [socket]
   );
 
+  // ICE candidates can arrive over the signaling socket before the remote
+  // description is set (setRemoteDescription is async and can take a beat,
+  // especially while waiting on getUserMedia on the answering side). Adding a
+  // candidate before that point throws and was being silently swallowed,
+  // which could prevent the connection from ever completing. Queue them
+  // instead and flush once the remote description is in place.
+  const drainCandidates = async (pc: RTCPeerConnection, queue: RTCIceCandidateInit[]) => {
+    while (queue.length) {
+      const c = queue.shift()!;
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(c));
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn("[webrtc] failed to add queued ICE candidate", err);
+      }
+    }
+  };
+
   const initiate = useCallback(
     async (localStream: MediaStream, matchId: string) => {
       const pc = createPeerConnection(matchId, true);
+      const pendingCandidates: RTCIceCandidateInit[] = [];
+      let remoteDescSet = false;
 
       localStream.getTracks().forEach((track) => {
         pc.addTrack(track, localStream);
@@ -66,17 +86,30 @@ export function useWebRTC(socket: React.MutableRefObject<Socket | null>) {
       await pc.setLocalDescription(offer);
 
       socket.current?.emit("webrtc:offer", { matchId, offer });
+      // eslint-disable-next-line no-console
+      console.log("[webrtc] offer sent");
 
       socket.current?.on("webrtc:answer", async ({ answer }: { answer: RTCSessionDescriptionInit }) => {
-        if (pc.signalingState !== "closed") {
-          await pc.setRemoteDescription(new RTCSessionDescription(answer));
-        }
+        if (pc.signalingState === "closed") return;
+        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        remoteDescSet = true;
+        // eslint-disable-next-line no-console
+        console.log("[webrtc] remote description set (initiator)");
+        await drainCandidates(pc, pendingCandidates);
       });
 
       socket.current?.on("webrtc:ice-candidate", async ({ candidate }: { candidate: RTCIceCandidateInit }) => {
-        try {
-          await pc.addIceCandidate(new RTCIceCandidate(candidate));
-        } catch {}
+        if (!candidate) return;
+        if (remoteDescSet) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.warn("[webrtc] failed to add ICE candidate", err);
+          }
+        } else {
+          pendingCandidates.push(candidate);
+        }
       });
     },
     [createPeerConnection, socket]
@@ -85,22 +118,43 @@ export function useWebRTC(socket: React.MutableRefObject<Socket | null>) {
   const answer = useCallback(
     async (localStream: MediaStream, matchId: string, offer: RTCSessionDescriptionInit) => {
       const pc = createPeerConnection(matchId, false);
+      const pendingCandidates: RTCIceCandidateInit[] = [];
+      let remoteDescSet = false;
+
+      // Register the candidate listener BEFORE awaiting anything below —
+      // otherwise candidates that arrive while we're still negotiating
+      // (setRemoteDescription/createAnswer/setLocalDescription, all async)
+      // would be missed entirely instead of merely queued.
+      socket.current?.on("webrtc:ice-candidate", async ({ candidate }: { candidate: RTCIceCandidateInit }) => {
+        if (!candidate) return;
+        if (remoteDescSet) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.warn("[webrtc] failed to add ICE candidate", err);
+          }
+        } else {
+          pendingCandidates.push(candidate);
+        }
+      });
 
       localStream.getTracks().forEach((track) => {
         pc.addTrack(track, localStream);
       });
 
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      remoteDescSet = true;
+      // eslint-disable-next-line no-console
+      console.log("[webrtc] remote description set (answerer)");
+      await drainCandidates(pc, pendingCandidates);
+
       const ans = await pc.createAnswer();
       await pc.setLocalDescription(ans);
 
       socket.current?.emit("webrtc:answer", { matchId, answer: ans });
-
-      socket.current?.on("webrtc:ice-candidate", async ({ candidate }: { candidate: RTCIceCandidateInit }) => {
-        try {
-          await pc.addIceCandidate(new RTCIceCandidate(candidate));
-        } catch {}
-      });
+      // eslint-disable-next-line no-console
+      console.log("[webrtc] answer sent");
     },
     [createPeerConnection, socket]
   );
