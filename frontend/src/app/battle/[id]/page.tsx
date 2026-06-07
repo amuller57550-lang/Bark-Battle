@@ -101,7 +101,36 @@ function BattleContent() {
       setBattle(state as BattleState);
     });
 
-    const c2 = on("battle:start", () => startCountdown());
+    const c2 = on("battle:start", (data: unknown) => {
+      const { player1Id, player2Id } = data as { player1Id: string; player2Id: string };
+      setBattle((prev) => {
+        if (prev) return prev; // already initialized
+        if (!user) return prev;
+        const isP1 = player1Id === user.id;
+        return {
+          matchId: id,
+          phase: "COUNTDOWN",
+          round: 1,
+          timeLeft: ROUND_DURATION,
+          player1: {
+            userId: player1Id,
+            username: isP1 ? user.username : "Adversaire",
+            avatarUrl: isP1 ? user.avatarUrl : undefined,
+            currentVolume: 0, peakVolume: 0, avgVolume: 0,
+            barkDuration: 0, score: 0, bonusMultiplier: 1, isBarking: false,
+          },
+          player2: {
+            userId: player2Id,
+            username: !isP1 ? user.username : "Adversaire",
+            avatarUrl: !isP1 ? user.avatarUrl : undefined,
+            currentVolume: 0, peakVolume: 0, avgVolume: 0,
+            barkDuration: 0, score: 0, bonusMultiplier: 1, isBarking: false,
+          },
+          bonuses: [],
+        };
+      });
+      startCountdown();
+    });
 
     const c3 = on("battle:volume-update", ({ playerId, volume }: { playerId: string; volume: number }) => {
       setBattle((prev) => {
@@ -118,9 +147,23 @@ function BattleContent() {
       showBonus(bonus);
     });
 
-    const c5 = on("battle:end", ({ winner, rpChange: rp }: { winner: string; rpChange: number }) => {
-      setRpChange(rp);
-      setBattle((prev) => prev ? { ...prev, phase: "MATCH_END", winner } : prev);
+    const c5 = on("battle:end", (data: unknown) => {
+      const { winner, player1Score, player2Score, player1RpChange, player2RpChange } = data as {
+        winner: string; player1Score: number; player2Score: number;
+        player1RpChange: number; player2RpChange: number;
+      };
+      setBattle((prev) => {
+        if (!prev) return prev;
+        const isP1 = prev.player1.userId === user?.id;
+        setRpChange(isP1 ? player1RpChange : player2RpChange);
+        return {
+          ...prev,
+          phase: "MATCH_END",
+          winner,
+          player1: { ...prev.player1, score: player1Score },
+          player2: { ...prev.player2, score: player2Score },
+        };
+      });
       setPhase("END");
       clearInterval(timerRef.current);
     });
