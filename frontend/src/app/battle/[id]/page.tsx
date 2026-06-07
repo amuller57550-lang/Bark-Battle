@@ -43,13 +43,9 @@ function BattleContent() {
   const barkDurationRef = useRef(0);
   const lastBonusRef = useRef(0);
   const battleRef = useRef<BattleState | null>(null);
-  const endBattleRef = useRef<() => void>(() => {});
 
-  // Keep battleRef in sync
+  // Keep battleRef in sync with current battle state
   useEffect(() => { battleRef.current = battle; }, [battle]);
-
-  // Keep endBattleRef in sync
-  useEffect(() => { endBattleRef.current = endBattle; }, [endBattle]);
 
   // Init microphone on mount
   useEffect(() => {
@@ -170,10 +166,11 @@ function BattleContent() {
 
       if (t <= 0) {
         clearInterval(timerRef.current);
-        endBattleRef.current();
+        endBattle();
       }
     }, 1000);
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [endBattle]);
 
   // Volume tracking during battle
   useEffect(() => {
