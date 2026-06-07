@@ -1,192 +1,91 @@
 "use client";
 
-// Procedurally synthesized bark sound effects for bot battles — no external
-// audio files needed (and therefore nothing to download/license). Each bot
-// difficulty gets its own "voice" built from oscillators + filtered noise
-// bursts shaped with amplitude/frequency envelopes via the Web Audio API.
+// Real bark sound effects for bot battles — one distinct audio clip per bot
+// difficulty (royalty-free, served from /public/sounds). Each clip is preloaded
+// and pooled so overlapping triggers don't cut each other off, and playback is
+// throttled so it sounds like discrete barks rather than a continuous mess.
 
 import { BotDifficulty } from "@/types";
 
-let sharedCtx: AudioContext | null = null;
-
-function getCtx(): AudioContext | null {
-  if (typeof window === "undefined") return null;
-  if (!sharedCtx) {
-    const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctor) return null;
-    sharedCtx = new Ctor();
-  }
-  if (sharedCtx.state === "suspended") {
-    sharedCtx.resume().catch(() => {});
-  }
-  return sharedCtx;
-}
-
-// Short burst of filtered noise — gives the bark its "breathy"/gravelly texture.
-function createNoiseBurst(ctx: AudioContext, duration: number): AudioBufferSourceNode {
-  const sampleRate = ctx.sampleRate;
-  const length = Math.max(1, Math.floor(sampleRate * duration));
-  const buffer = ctx.createBuffer(1, length, sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < length; i++) {
-    data[i] = Math.random() * 2 - 1;
-  }
-  const src = ctx.createBufferSource();
-  src.buffer = buffer;
-  return src;
-}
-
-interface BarkVoice {
-  /** Starting pitch of the tonal "woof" component (Hz) */
-  startFreq: number;
-  /** Pitch the tone falls to by the end of the bark (Hz) — barks always swoop downward */
-  endFreq: number;
-  /** Total length of a single bark, in seconds */
-  duration: number;
-  /** Bandpass filter center frequency — shapes the "size" of the animal */
-  filterFreq: number;
-  /** How resonant/growly the filter sounds */
-  filterQ: number;
-  /** Overall loudness (0-1) */
-  gain: number;
-  /** How many quick yips make up one "bark" (puppies yip in twos, Cerberus is a single roar) */
-  yips: number;
-  /** Gap between yips, in seconds */
-  yipGap: number;
-  /** Detune (cents) applied to a second layered oscillator — adds growl/menace */
-  detune: number;
-}
-
-const VOICES: Record<BotDifficulty, BarkVoice> = {
-  PUPPY: {
-    startFreq: 1100,
-    endFreq: 750,
-    duration: 0.11,
-    filterFreq: 1800,
-    filterQ: 2,
-    gain: 0.22,
-    yips: 2,
-    yipGap: 0.09,
-    detune: 0,
-  },
-  GUARD_DOG: {
-    startFreq: 520,
-    endFreq: 260,
-    duration: 0.18,
-    filterFreq: 900,
-    filterQ: 1.4,
-    gain: 0.3,
-    yips: 1,
-    yipGap: 0,
-    detune: 12,
-  },
-  ALPHA_WOLF: {
-    startFreq: 320,
-    endFreq: 140,
-    duration: 0.3,
-    filterFreq: 550,
-    filterQ: 1.1,
-    gain: 0.34,
-    yips: 1,
-    yipGap: 0,
-    detune: 24,
-  },
-  CERBERUS: {
-    startFreq: 200,
-    endFreq: 80,
-    duration: 0.4,
-    filterFreq: 350,
-    filterQ: 0.9,
-    gain: 0.4,
-    yips: 1,
-    yipGap: 0,
-    detune: 40,
-  },
+const BARK_SOURCES: Record<BotDifficulty, string> = {
+  PUPPY: "/sounds/puppy-bark.mp3",
+  GUARD_DOG: "/sounds/guard-dog-bark.mp3",
+  ALPHA_WOLF: "/sounds/alpha-wolf-bark.mp3",
+  CERBERUS: "/sounds/cerberus-bark.mp3",
 };
 
-function scheduleSingleBark(ctx: AudioContext, voice: BarkVoice, when: number) {
-  const { startFreq, endFreq, duration, filterFreq, filterQ, gain, detune } = voice;
+// How loud each bot's clip plays (0-1) — lets us balance very different source
+// recordings (e.g. a long growl vs. a short yip) against each other.
+const BARK_VOLUME: Record<BotDifficulty, number> = {
+  PUPPY: 0.55,
+  GUARD_DOG: 0.6,
+  ALPHA_WOLF: 0.6,
+  CERBERUS: 0.65,
+};
 
-  // Shared bandpass filter gives the whole bark its timbral "size"
-  const filter = ctx.createBiquadFilter();
-  filter.type = "bandpass";
-  filter.frequency.value = filterFreq;
-  filter.Q.value = filterQ;
+const POOL_SIZE = 3;
+const pools: Partial<Record<BotDifficulty, HTMLAudioElement[]>> = {};
 
-  const master = ctx.createGain();
-  master.gain.setValueAtTime(0, when);
-  master.gain.linearRampToValueAtTime(gain, when + duration * 0.12);
-  master.gain.exponentialRampToValueAtTime(0.001, when + duration);
-
-  filter.connect(master);
-  master.connect(ctx.destination);
-
-  // Tonal "woof" — a sawtooth swooping downward in pitch
-  const osc = ctx.createOscillator();
-  osc.type = "sawtooth";
-  osc.frequency.setValueAtTime(startFreq, when);
-  osc.frequency.exponentialRampToValueAtTime(Math.max(40, endFreq), when + duration);
-  osc.connect(filter);
-  osc.start(when);
-  osc.stop(when + duration + 0.02);
-
-  // Layered detuned oscillator adds growl/menace for the bigger bots
-  if (detune > 0) {
-    const osc2 = ctx.createOscillator();
-    osc2.type = "sawtooth";
-    osc2.detune.value = -detune;
-    osc2.frequency.setValueAtTime(startFreq, when);
-    osc2.frequency.exponentialRampToValueAtTime(Math.max(40, endFreq), when + duration);
-    const g2 = ctx.createGain();
-    g2.gain.value = 0.6;
-    osc2.connect(g2);
-    g2.connect(filter);
-    osc2.start(when);
-    osc2.stop(when + duration + 0.02);
+function getPool(difficulty: BotDifficulty): HTMLAudioElement[] {
+  if (typeof window === "undefined") return [];
+  let pool = pools[difficulty];
+  if (!pool) {
+    pool = Array.from({ length: POOL_SIZE }, () => {
+      const audio = new Audio(BARK_SOURCES[difficulty]);
+      audio.preload = "auto";
+      audio.volume = BARK_VOLUME[difficulty];
+      return audio;
+    });
+    pools[difficulty] = pool;
   }
+  return pool;
+}
 
-  // Noise burst gives breathy/gravelly texture under the tone
-  const noise = createNoiseBurst(ctx, duration);
-  const noiseGain = ctx.createGain();
-  noiseGain.gain.value = 0.5;
-  noise.connect(noiseGain);
-  noiseGain.connect(filter);
-  noise.start(when);
-  noise.stop(when + duration);
+function playFromPool(difficulty: BotDifficulty) {
+  const pool = getPool(difficulty);
+  if (!pool.length) return;
+  // Reuse the element that's currently the most "finished" (paused/ended),
+  // falling back to the first one if everything is mid-playback.
+  const el = pool.find((a) => a.paused || a.ended) ?? pool[0];
+  try {
+    el.currentTime = 0;
+    void el.play().catch(() => {});
+  } catch {
+    // Autoplay/decoding hiccup — ignore, next trigger will retry.
+  }
 }
 
 const lastPlayed: Partial<Record<BotDifficulty, number>> = {};
-const MIN_INTERVAL_MS = 450; // throttle so consecutive "barking" frames don't spam
+const MIN_INTERVAL_MS = 700; // throttle so consecutive "barking" frames don't spam
 
 /**
- * Play a synthesized bark for the given bot difficulty. Safe to call
+ * Play a real bark clip for the given bot difficulty. Safe to call
  * frequently — internally throttled so it sounds like discrete barks rather
- * than a continuous drone.
+ * than an overlapping mess.
  */
 export function playBotBark(difficulty: BotDifficulty) {
-  const ctx = getCtx();
-  if (!ctx) return;
+  if (typeof window === "undefined") return;
 
   const now = Date.now();
   const last = lastPlayed[difficulty] ?? 0;
   if (now - last < MIN_INTERVAL_MS) return;
   lastPlayed[difficulty] = now;
 
-  const voice = VOICES[difficulty];
-  const startTime = ctx.currentTime + 0.01;
-  for (let i = 0; i < voice.yips; i++) {
-    scheduleSingleBark(ctx, voice, startTime + i * (voice.duration + voice.yipGap));
-  }
+  playFromPool(difficulty);
 }
 
-/** Plays a slightly more triumphant/longer bark — used for victory moments. */
+/** Plays the bot's bark a couple of extra times in a row — used for victory moments. */
 export function playBotVictoryBark(difficulty: BotDifficulty) {
-  const ctx = getCtx();
-  if (!ctx) return;
-  const voice = VOICES[difficulty];
-  const startTime = ctx.currentTime + 0.01;
-  // Three quick barks in a row to celebrate
-  for (let i = 0; i < 3; i++) {
-    scheduleSingleBark(ctx, voice, startTime + i * (voice.duration + 0.07));
-  }
+  if (typeof window === "undefined") return;
+  playFromPool(difficulty);
+  setTimeout(() => playFromPool(difficulty), 450);
+  setTimeout(() => playFromPool(difficulty), 900);
+}
+
+/**
+ * Preload the bark clips for a given difficulty so the very first bark of a
+ * match doesn't lag behind while the audio file downloads.
+ */
+export function preloadBotBark(difficulty: BotDifficulty) {
+  getPool(difficulty);
 }
