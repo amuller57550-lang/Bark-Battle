@@ -63,6 +63,18 @@ function BattleContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, isBot]);
 
+  // Self-healing: if we never receive battle:start (missed broadcast / race condition),
+  // keep re-announcing ourselves so the server can resend battle:start directly to us.
+  useEffect(() => {
+    if (isBot || !user) return;
+    const retry = setInterval(() => {
+      if (battleRef.current) { clearInterval(retry); return; }
+      if (isConnected) emit("battle:join", { matchId: id, userId: user.id });
+    }, 3000);
+    return () => clearInterval(retry);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBot, isConnected]);
+
   // Bot match init
   useEffect(() => {
     if (!isBot || !user) return;
