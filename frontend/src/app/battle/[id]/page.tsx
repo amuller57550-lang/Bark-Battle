@@ -102,10 +102,20 @@ function BattleContent() {
     });
 
     const c2 = on("battle:start", (data: unknown) => {
-      const { player1Id, player2Id } = data as { player1Id: string; player2Id: string };
+      const {
+        player1Id, player2Id,
+        player1Username, player1AvatarUrl,
+        player2Username, player2AvatarUrl,
+      } = data as {
+        player1Id: string; player2Id: string;
+        player1Username?: string; player1AvatarUrl?: string | null;
+        player2Username?: string; player2AvatarUrl?: string | null;
+      };
+      let didInit = false;
       setBattle((prev) => {
         if (prev) return prev; // already initialized
         if (!user) return prev;
+        didInit = true;
         const isP1 = player1Id === user.id;
         return {
           matchId: id,
@@ -114,22 +124,22 @@ function BattleContent() {
           timeLeft: ROUND_DURATION,
           player1: {
             userId: player1Id,
-            username: isP1 ? user.username : "Adversaire",
-            avatarUrl: isP1 ? user.avatarUrl : undefined,
+            username: isP1 ? user.username : (player1Username || "Adversaire"),
+            avatarUrl: (isP1 ? user.avatarUrl : player1AvatarUrl) || undefined,
             currentVolume: 0, peakVolume: 0, avgVolume: 0,
             barkDuration: 0, score: 0, bonusMultiplier: 1, isBarking: false,
           },
           player2: {
             userId: player2Id,
-            username: !isP1 ? user.username : "Adversaire",
-            avatarUrl: !isP1 ? user.avatarUrl : undefined,
+            username: !isP1 ? user.username : (player2Username || "Adversaire"),
+            avatarUrl: (!isP1 ? user.avatarUrl : player2AvatarUrl) || undefined,
             currentVolume: 0, peakVolume: 0, avgVolume: 0,
             barkDuration: 0, score: 0, bonusMultiplier: 1, isBarking: false,
           },
           bonuses: [],
         };
       });
-      startCountdown();
+      if (didInit) startCountdown();
     });
 
     const c3 = on("battle:volume-update", ({ playerId, volume }: { playerId: string; volume: number }) => {

@@ -10,6 +10,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { MatchesService } from '../matches/matches.service';
+import { UsersService } from '../users/users.service';
 
 interface BattleRoom {
   matchId: string;
@@ -33,7 +34,24 @@ export class BattleGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private jwt: JwtService,
     private matches: MatchesService,
+    private users: UsersService,
   ) {}
+
+  private async buildStartPayload(matchId: string, room: BattleRoom) {
+    const [p1, p2] = await Promise.all([
+      this.users.findById(room.player1.id).catch(() => null),
+      this.users.findById(room.player2.id).catch(() => null),
+    ]);
+    return {
+      matchId,
+      player1Id: room.player1.id,
+      player2Id: room.player2.id,
+      player1Username: p1?.username ?? 'Adversaire',
+      player1AvatarUrl: p1?.avatarUrl ?? null,
+      player2Username: p2?.username ?? 'Adversaire',
+      player2AvatarUrl: p2?.avatarUrl ?? null,
+    };
+  }
 
   async handleConnection(client: Socket) {
     try {
@@ -67,11 +85,12 @@ export class BattleGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('battle:join')
-  joinBattle(
+  async joinBattle(
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { matchId: string; userId: string },
   ) {
     const userId = data.userId || client.data.userId;
+    const room = `battle:${data.matchId}`;
     const existing = this.battles.get(data.matchId);
 
     if (!existing) {
@@ -86,34 +105,49 @@ export class BattleGateway implements OnGatewayConnection, OnGatewayDisconnect {
         timer: null,
       });
       this.playerToBattle.set(userId, data.matchId);
-      client.join(`battle:${data.matchId}`);
-    } else if (!existing.player2.id) {
-      // Second player joins
+      client.join(room);
+      return;
+    }
+
+    // Reconnection of player1 (e.g. effect re-fired, socket replaced)
+    if (existing.player1.id === userId) {
+      existing.player1.socket = client;
+      this.playerToBattle.set(userId, data.matchId);
+      client.join(room);
+      if (existing.player2.id) {
+        const payload = await this.buildStartPayload(data.matchId, existing);
+        client.emit('battle:start', payload);
+      }
+      return;
+    }
+
+    // Reconnection of player2
+    if (existing.player2.id === userId) {
+      existing.player2.socket = client;
+      this.playerToBattle.set(userId, data.matchId);
+      client.join(room);
+      const payload = await this.buildStartPayload(data.matchId, existing);
+      client.emit('battle:start', payload);
+      return;
+    }
+
+    if (!existing.player2.id) {
+      // Second (different) player joins
       existing.player2 = { id: userId, socket: client, volumes: [], peak: 0 };
       this.playerToBattle.set(userId, data.matchId);
-      client.join(`battle:${data.matchId}`);
+      client.join(room);
 
       // Both players ready — start countdown
-      this.server.to(`battle:${data.matchId}`).emit('battle:start', {
-        matchId: data.matchId,
-        player1Id: existing.player1.id,
-        player2Id: existing.player2.id,
-      });
+      const payload = await this.buildStartPayload(data.matchId, existing);
+      this.server.to(room).emit('battle:start', payload);
 
       // Schedule battle end
       existing.timer = setTimeout(
         () => this.endBattle(data.matchId),
         (ROUND_DURATION + 3) * 1000, // +3 for countdown
       );
-    } else {
-      // Both players already in room (reconnect) — resend battle:start to this client
-      client.join(`battle:${data.matchId}`);
-      client.emit('battle:start', {
-        matchId: data.matchId,
-        player1Id: existing.player1.id,
-        player2Id: existing.player2.id,
-      });
     }
+    // else: room already has two different players — ignore extra join attempts
   }
 
   @SubscribeMessage('battle:volume')
