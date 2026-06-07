@@ -6,6 +6,13 @@ import { Socket } from "socket.io-client";
 const ICE_SERVERS = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
+  // Free public TURN relay (Open Relay Project / Metered) — needed when a
+  // direct peer-to-peer connection can't be established (NAT/firewall).
+  // No signup required; shared public credentials.
+  { urls: "stun:openrelay.metered.ca:80" },
+  { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
+  { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
+  { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" },
 ];
 
 export function useWebRTC(socket: React.MutableRefObject<Socket | null>) {
@@ -33,6 +40,13 @@ export function useWebRTC(socket: React.MutableRefObject<Socket | null>) {
 
       pc.onconnectionstatechange = () => {
         setIsConnected(pc.connectionState === "connected");
+        // eslint-disable-next-line no-console
+        console.log(`[webrtc] connectionState (${isInitiator ? "initiator" : "answerer"}):`, pc.connectionState);
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        // eslint-disable-next-line no-console
+        console.log(`[webrtc] iceConnectionState (${isInitiator ? "initiator" : "answerer"}):`, pc.iceConnectionState);
       };
 
       return pc;
