@@ -171,7 +171,7 @@ function BattleContent() {
       }
     }, 1000);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [endBattle]);
+  }, []);
 
   // Volume tracking during battle
   useEffect(() => {
