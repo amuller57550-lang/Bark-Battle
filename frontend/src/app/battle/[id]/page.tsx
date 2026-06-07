@@ -44,6 +44,7 @@ function BattleContent() {
   const barkDurationRef = useRef(0);
   const lastBonusRef = useRef(0);
   const battleRef = useRef<BattleState | null>(null);
+  const battleInitRef = useRef(false);
 
   // Keep battleRef in sync with current battle state
   useEffect(() => { battleRef.current = battle; }, [battle]);
@@ -123,35 +124,36 @@ function BattleContent() {
         player1Username?: string; player1AvatarUrl?: string | null;
         player2Username?: string; player2AvatarUrl?: string | null;
       };
-      let didInit = false;
-      setBattle((prev) => {
-        if (prev) return prev; // already initialized
-        if (!user) return prev;
-        didInit = true;
-        const isP1 = player1Id === user.id;
-        return {
-          matchId: id,
-          phase: "COUNTDOWN",
-          round: 1,
-          timeLeft: ROUND_DURATION,
-          player1: {
-            userId: player1Id,
-            username: isP1 ? user.username : (player1Username || "Adversaire"),
-            avatarUrl: (isP1 ? user.avatarUrl : player1AvatarUrl) || undefined,
-            currentVolume: 0, peakVolume: 0, avgVolume: 0,
-            barkDuration: 0, score: 0, bonusMultiplier: 1, isBarking: false,
-          },
-          player2: {
-            userId: player2Id,
-            username: !isP1 ? user.username : (player2Username || "Adversaire"),
-            avatarUrl: (!isP1 ? user.avatarUrl : player2AvatarUrl) || undefined,
-            currentVolume: 0, peakVolume: 0, avgVolume: 0,
-            barkDuration: 0, score: 0, bonusMultiplier: 1, isBarking: false,
-          },
-          bonuses: [],
-        };
-      });
-      if (didInit) startCountdown();
+      // Guard synchronously with a ref — setBattle's updater isn't guaranteed
+      // to run before the next line, so we can't rely on a flag set inside it.
+      if (battleInitRef.current || battleRef.current || !user) return;
+      battleInitRef.current = true;
+
+      const isP1 = player1Id === user.id;
+      const initialBattle: BattleState = {
+        matchId: id,
+        phase: "COUNTDOWN",
+        round: 1,
+        timeLeft: ROUND_DURATION,
+        player1: {
+          userId: player1Id,
+          username: isP1 ? user.username : (player1Username || "Adversaire"),
+          avatarUrl: (isP1 ? user.avatarUrl : player1AvatarUrl) || undefined,
+          currentVolume: 0, peakVolume: 0, avgVolume: 0,
+          barkDuration: 0, score: 0, bonusMultiplier: 1, isBarking: false,
+        },
+        player2: {
+          userId: player2Id,
+          username: !isP1 ? user.username : (player2Username || "Adversaire"),
+          avatarUrl: (!isP1 ? user.avatarUrl : player2AvatarUrl) || undefined,
+          currentVolume: 0, peakVolume: 0, avgVolume: 0,
+          barkDuration: 0, score: 0, bonusMultiplier: 1, isBarking: false,
+        },
+        bonuses: [],
+      };
+      battleRef.current = initialBattle;
+      setBattle(initialBattle);
+      startCountdown();
     });
 
     const c3 = on("battle:volume-update", ({ playerId, volume }: { playerId: string; volume: number }) => {
