@@ -27,7 +27,7 @@ function BattleContent() {
   const isBot = id.startsWith("bot-");
   const botDifficulty = (searchParams.get("difficulty") || "GUARD_DOG") as BotDifficulty;
 
-  const { isActive, metrics, start, stop, error: micError } = useAudio();
+  const { isActive, metrics, start, stop, error: micError, getStream } = useAudio();
   const { isConnected, emit, on, socket } = useSocket("/battle");
   const { initiate, answer, cleanup: cleanupRTC, remoteAudioRef } = useWebRTC(socket);
 
@@ -45,6 +45,7 @@ function BattleContent() {
   const lastBonusRef = useRef(0);
   const battleRef = useRef<BattleState | null>(null);
   const battleInitRef = useRef(false);
+  const rtcStartedRef = useRef(false);
 
   // Keep battleRef in sync with current battle state
   useEffect(() => { battleRef.current = battle; }, [battle]);
@@ -193,8 +194,8 @@ function BattleContent() {
     });
 
     const c6 = on("webrtc:offer", async ({ offer }: { offer: RTCSessionDescriptionInit }) => {
-      if (isActive && socket.current) {
-        const stream = (await navigator.mediaDevices.getUserMedia({ audio: true, video: false }));
+      if (socket.current) {
+        const stream = getStream() || (await navigator.mediaDevices.getUserMedia({ audio: true, video: false }));
         await answer(stream, id, offer);
       }
     });
@@ -205,6 +206,18 @@ function BattleContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isBot]);
+
+  // WebRTC: once the match is known and the mic is ready, the designated
+  // "initiator" (player1) creates the offer so both players hear each other.
+  // The other side just waits for webrtc:offer (handled by c6 above) and answers.
+  useEffect(() => {
+    if (isBot || !battle || !user || !isActive || rtcStartedRef.current) return;
+    if (battle.player1.userId !== user.id) return; // only the initiator opens the connection
+    const stream = getStream();
+    if (!stream) return;
+    rtcStartedRef.current = true;
+    initiate(stream, id);
+  }, [isBot, battle, user, isActive, getStream, initiate, id]);
 
   const startCountdown = useCallback(() => {
     setPhase("COUNTDOWN");
@@ -380,7 +393,7 @@ function BattleContent() {
 
   return (
     <div className="min-h-screen bg-arena-gradient relative overflow-hidden">
-      <audio ref={remoteAudioRef} autoPlay className="hidden" />
+      <audio ref={remoteAudioRef} autoPlay muted={isMuted} className="hidden" />
 
       {/* Ambient glow based on volume */}
       <div
