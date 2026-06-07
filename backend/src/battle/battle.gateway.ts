@@ -37,6 +37,19 @@ export class BattleGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private users: UsersService,
   ) {}
 
+  // (Re)schedule the match-end timer relative to "now". Called every time we
+  // (re)send battle:start so that a client which only just received the start
+  // signal (e.g. via reconnection/retry) still gets a full round before the
+  // match is finalized — instead of inheriting a timer scheduled for someone
+  // who started earlier.
+  private scheduleBattleEnd(matchId: string, battle: BattleRoom) {
+    if (battle.timer) clearTimeout(battle.timer);
+    battle.timer = setTimeout(
+      () => this.endBattle(matchId),
+      (ROUND_DURATION + 3) * 1000, // +3 for countdown
+    );
+  }
+
   private async buildStartPayload(matchId: string, room: BattleRoom) {
     const [p1, p2] = await Promise.all([
       this.users.findById(room.player1.id).catch(() => null),
@@ -117,6 +130,7 @@ export class BattleGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (existing.player2.id) {
         const payload = await this.buildStartPayload(data.matchId, existing);
         client.emit('battle:start', payload);
+        this.scheduleBattleEnd(data.matchId, existing);
       }
       return;
     }
@@ -128,6 +142,7 @@ export class BattleGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.join(room);
       const payload = await this.buildStartPayload(data.matchId, existing);
       client.emit('battle:start', payload);
+      this.scheduleBattleEnd(data.matchId, existing);
       return;
     }
 
@@ -142,10 +157,7 @@ export class BattleGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.server.to(room).emit('battle:start', payload);
 
       // Schedule battle end
-      existing.timer = setTimeout(
-        () => this.endBattle(data.matchId),
-        (ROUND_DURATION + 3) * 1000, // +3 for countdown
-      );
+      this.scheduleBattleEnd(data.matchId, existing);
     }
     // else: room already has two different players — ignore extra join attempts
   }

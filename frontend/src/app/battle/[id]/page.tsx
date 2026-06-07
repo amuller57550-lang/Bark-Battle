@@ -319,22 +319,22 @@ function BattleContent() {
     if (!currentBattle || !user) return;
     clearInterval(timerRef.current);
 
-    const vols = volumeAccRef.current;
-    const avg = vols.length ? vols.reduce((a, b) => a + b, 0) / vols.length : 0;
-    const peak = Math.max(...vols, 0);
-    const consistency = vols.length > 0 ? vols.filter((v) => v > 10).length / vols.length : 0;
-
-    const myScore = calculateScore({
-      avgVolume: avg,
-      peakVolume: peak,
-      barkDuration: barkDurationRef.current,
-      consistency,
-      bonuses: currentBattle.bonuses
-        .filter((b) => b.playerId === user.id)
-        .map((b) => ({ type: b.type, multiplier: b.multiplier })),
-    });
-
     if (isBot) {
+      const vols = volumeAccRef.current;
+      const avg = vols.length ? vols.reduce((a, b) => a + b, 0) / vols.length : 0;
+      const peak = Math.max(...vols, 0);
+      const consistency = vols.length > 0 ? vols.filter((v) => v > 10).length / vols.length : 0;
+
+      const myScore = calculateScore({
+        avgVolume: avg,
+        peakVolume: peak,
+        barkDuration: barkDurationRef.current,
+        consistency,
+        bonuses: currentBattle.bonuses
+          .filter((b) => b.playerId === user.id)
+          .map((b) => ({ type: b.type, multiplier: b.multiplier })),
+      });
+
       const botMetrics = calculateBotScore(botDifficulty, ROUND_DURATION);
       const botScore = calculateScore(botMetrics);
       const iWin = myScore.final > botScore.final;
@@ -350,9 +350,12 @@ function BattleContent() {
         };
       });
       setRpChange(iWin ? 15 : -10);
+      setPhase("END");
     }
-
-    setPhase("END");
+    // For online matches, wait for the server's authoritative `battle:end`
+    // event (handled by c5) which carries the real scores/winner/RP — setting
+    // phase to "END" here would show the victory screen prematurely with
+    // empty/placeholder data.
   }, [user, isBot, botDifficulty]);
 
   const handlePlayAgain = useCallback(() => {
