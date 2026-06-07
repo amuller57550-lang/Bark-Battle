@@ -25,28 +25,56 @@ export function useWebRTC(socket: React.MutableRefObject<Socket | null>) {
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
       pcRef.current = pc;
 
+      const tag = isInitiator ? "initiator" : "answerer";
+
       pc.onicecandidate = ({ candidate }) => {
         if (candidate) {
+          // eslint-disable-next-line no-console
+          console.log(`[webrtc] local ICE candidate (${tag}):`, candidate.type, candidate.protocol, candidate.address || candidate.candidate);
           socket.current?.emit("webrtc:ice-candidate", { matchId, candidate });
+        } else {
+          // eslint-disable-next-line no-console
+          console.log(`[webrtc] local ICE gathering complete (${tag})`);
         }
       };
 
+      // @ts-expect-error - onicecandidateerror exists at runtime but may be missing from lib.dom typings
+      pc.onicecandidateerror = (e: RTCPeerConnectionIceErrorEvent) => {
+        // eslint-disable-next-line no-console
+        console.warn(`[webrtc] ICE candidate error (${tag}):`, e.errorCode, e.errorText, e.url);
+      };
+
+      pc.onicegatheringstatechange = () => {
+        // eslint-disable-next-line no-console
+        console.log(`[webrtc] iceGatheringState (${tag}):`, pc.iceGatheringState);
+      };
+
+      pc.onsignalingstatechange = () => {
+        // eslint-disable-next-line no-console
+        console.log(`[webrtc] signalingState (${tag}):`, pc.signalingState);
+      };
+
       pc.ontrack = ({ streams }) => {
+        // eslint-disable-next-line no-console
+        console.log(`[webrtc] ontrack fired (${tag}), streams:`, streams.length, "tracks:", streams[0]?.getTracks().map((t) => t.kind));
         if (remoteAudioRef.current && streams[0]) {
           remoteAudioRef.current.srcObject = streams[0];
-          remoteAudioRef.current.play().catch(() => {});
+          remoteAudioRef.current
+            .play()
+            .then(() => console.log(`[webrtc] remote audio playing (${tag})`))
+            .catch((err) => console.warn(`[webrtc] remote audio play() failed (${tag}):`, err));
         }
       };
 
       pc.onconnectionstatechange = () => {
         setIsConnected(pc.connectionState === "connected");
         // eslint-disable-next-line no-console
-        console.log(`[webrtc] connectionState (${isInitiator ? "initiator" : "answerer"}):`, pc.connectionState);
+        console.log(`[webrtc] connectionState (${tag}):`, pc.connectionState);
       };
 
       pc.oniceconnectionstatechange = () => {
         // eslint-disable-next-line no-console
-        console.log(`[webrtc] iceConnectionState (${isInitiator ? "initiator" : "answerer"}):`, pc.iceConnectionState);
+        console.log(`[webrtc] iceConnectionState (${tag}):`, pc.iceConnectionState);
       };
 
       return pc;
@@ -77,6 +105,9 @@ export function useWebRTC(socket: React.MutableRefObject<Socket | null>) {
       const pc = createPeerConnection(matchId, true);
       const pendingCandidates: RTCIceCandidateInit[] = [];
       let remoteDescSet = false;
+
+      // eslint-disable-next-line no-console
+      console.log("[webrtc] (initiator) local stream tracks:", localStream.getTracks().map((t) => `${t.kind}/${t.readyState}/enabled=${t.enabled}`));
 
       localStream.getTracks().forEach((track) => {
         pc.addTrack(track, localStream);
@@ -138,6 +169,9 @@ export function useWebRTC(socket: React.MutableRefObject<Socket | null>) {
           pendingCandidates.push(candidate);
         }
       });
+
+      // eslint-disable-next-line no-console
+      console.log("[webrtc] (answerer) local stream tracks:", localStream.getTracks().map((t) => `${t.kind}/${t.readyState}/enabled=${t.enabled}`));
 
       localStream.getTracks().forEach((track) => {
         pc.addTrack(track, localStream);
