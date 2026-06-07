@@ -21,7 +21,7 @@ export interface ScoreResult {
 }
 
 const WEIGHTS = { intensity: 0.35, peak: 0.25, duration: 0.25, consistency: 0.15 };
-const ROUND_DURATION = 30;
+const ROUND_DURATION = 10;
 
 // Anti-cheat thresholds
 const MAX_VALID_PEAK = 100;

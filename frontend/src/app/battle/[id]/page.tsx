@@ -16,7 +16,7 @@ import { BattleState, BonusEvent, BONUS_CONFIG, BOT_CONFIG, BotDifficulty } from
 import { calculateBotScore, calculateScore, rollRandomBonus } from "@/lib/scoring";
 import toast from "react-hot-toast";
 
-const ROUND_DURATION = 30;
+const ROUND_DURATION = 10;
 const COUNTDOWN_DURATION = 3;
 
 function BattleContent() {
@@ -136,7 +136,8 @@ function BattleContent() {
       [c1, c2, c3, c4, c5, c6].forEach((c) => typeof c === "function" && c());
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isBot, isActive]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBot]);
 
   const startCountdown = useCallback(() => {
     setPhase("COUNTDOWN");

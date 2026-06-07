@@ -21,7 +21,7 @@ interface BattleRoom {
   timer: ReturnType<typeof setTimeout> | null;
 }
 
-const ROUND_DURATION = 30;
+const ROUND_DURATION = 10;
 
 @WebSocketGateway({ namespace: '/battle', cors: { origin: '*' } })
 export class BattleGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -105,6 +105,14 @@ export class BattleGateway implements OnGatewayConnection, OnGatewayDisconnect {
         () => this.endBattle(data.matchId),
         (ROUND_DURATION + 3) * 1000, // +3 for countdown
       );
+    } else {
+      // Both players already in room (reconnect) — resend battle:start to this client
+      client.join(`battle:${data.matchId}`);
+      client.emit('battle:start', {
+        matchId: data.matchId,
+        player1Id: existing.player1.id,
+        player2Id: existing.player2.id,
+      });
     }
   }
 
