@@ -14,7 +14,7 @@ import { BarkMeter } from "@/components/battle/BarkMeter";
 import { VictoryScreen } from "@/components/battle/VictoryScreen";
 import { BattleState, BonusEvent, BONUS_CONFIG, BOT_CONFIG, BotDifficulty } from "@/types";
 import { calculateBotScore, calculateScore, rollRandomBonus } from "@/lib/scoring";
-import { playBotBark, playBotVictoryBark, preloadBotBark } from "@/lib/barkSounds";
+import { playBotBark, playCountdownBeep, preloadBotBark } from "@/lib/barkSounds";
 import toast from "react-hot-toast";
 
 const ROUND_DURATION = 10;
@@ -228,9 +228,11 @@ function BattleContent() {
     setPhase("COUNTDOWN");
     let c = COUNTDOWN_DURATION;
     setCountdown(c);
+    playCountdownBeep(c);
     const t = setInterval(() => {
       c--;
       setCountdown(c);
+      playCountdownBeep(c);
       if (c <= 0) {
         clearInterval(t);
         startBattle();
@@ -294,12 +296,11 @@ function BattleContent() {
       const botVol = Math.max(0, Math.min(100,
         botCfg.avgVolume + (Math.random() - 0.5) * 30 * botCfg.aggressiveness
       ));
-      // Play a bot-specific bark sound whenever the bot is "barking" — each
-      // difficulty has its own synthesized voice (see lib/barkSounds.ts), and
-      // playback is internally throttled so it sounds like discrete barks.
-      if (botVol > 10) {
-        playBotBark(botDifficulty);
-      }
+      // NOTE: bark playback itself is handled by a dedicated timer-based
+      // effect below — it used to be triggered from here, but this effect
+      // only re-runs when the *player's* mic volume changes, so a silent
+      // player caused the bot to stop barking mid-fight. Visual "isBarking"
+      // state is still driven by the simulated bot volume.
       setBattle((prev) => {
         if (!prev) return prev;
         return {
@@ -332,6 +333,29 @@ function BattleContent() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [metrics.volume, phase]);
+
+  // Steady, independent bot barking. This runs purely off a timer tied to
+  // the battle phase — NOT to the player's mic level — so the bot keeps
+  // barking at a regular pace for the whole fight, even if the human player
+  // stays completely silent (which used to make the bot go quiet too, since
+  // the old trigger lived inside the player's-volume effect above).
+  useEffect(() => {
+    if (!isBot || phase !== "BATTLE") return;
+    const cfg = BOT_CONFIG[botDifficulty];
+    // More aggressive bots bark faster/more often (~650-1100ms apart),
+    // with a little randomness so it doesn't sound metronomic.
+    const baseInterval = 1100 - cfg.aggressiveness * 450;
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const scheduleNext = () => {
+      const jitter = (Math.random() - 0.5) * 300;
+      timeoutId = setTimeout(() => {
+        playBotBark(botDifficulty);
+        scheduleNext();
+      }, Math.max(400, baseInterval + jitter));
+    };
+    scheduleNext();
+    return () => clearTimeout(timeoutId);
+  }, [isBot, phase, botDifficulty]);
 
   const showBonus = useCallback((bonus: BonusEvent) => {
     setActiveBonus(bonus);
@@ -377,7 +401,6 @@ function BattleContent() {
       });
       setRpChange(iWin ? 15 : -10);
       setPhase("END");
-      if (!iWin) playBotVictoryBark(botDifficulty);
     }
     // For online matches, wait for the server's authoritative `battle:end`
     // event (handled by c5) which carries the real scores/winner/RP — setting

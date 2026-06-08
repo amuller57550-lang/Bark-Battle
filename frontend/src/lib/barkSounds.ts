@@ -74,18 +74,61 @@ export function playBotBark(difficulty: BotDifficulty) {
   playFromPool(difficulty);
 }
 
-/** Plays the bot's bark a couple of extra times in a row — used for victory moments. */
-export function playBotVictoryBark(difficulty: BotDifficulty) {
-  if (typeof window === "undefined") return;
-  playFromPool(difficulty);
-  setTimeout(() => playFromPool(difficulty), 450);
-  setTimeout(() => playFromPool(difficulty), 900);
-}
-
 /**
  * Preload the bark clips for a given difficulty so the very first bark of a
  * match doesn't lag behind while the audio file downloads.
  */
 export function preloadBotBark(difficulty: BotDifficulty) {
   getPool(difficulty);
+}
+
+// ------------------------------------------------------------------
+// Pre-match countdown beep — synthesized via the Web Audio API so we don't
+// depend on an external sound file. A short, clean blip on "3"/"2"/"1" and a
+// brighter, longer tone on "GO!" (count <= 0).
+// ------------------------------------------------------------------
+
+let sharedAudioCtx: AudioContext | null = null;
+
+function getAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  if (!sharedAudioCtx) {
+    const Ctor =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return null;
+    sharedAudioCtx = new Ctor();
+  }
+  if (sharedAudioCtx.state === "suspended") void sharedAudioCtx.resume();
+  return sharedAudioCtx;
+}
+
+/**
+ * Plays a short synthesized beep for the pre-match countdown. Pass the
+ * current countdown number (3, 2, 1, 0) — the "0"/"GO!" tick gets a higher,
+ * longer, more energetic tone so the start of the round feels distinct.
+ */
+export function playCountdownBeep(count: number) {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const isGo = count <= 0;
+  const freq = isGo ? 880 : 523.25;
+  const duration = isGo ? 0.35 : 0.16;
+  const peak = isGo ? 0.32 : 0.22;
+  const now = ctx.currentTime;
+
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(freq, now);
+
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(peak, now + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + duration + 0.05);
 }
