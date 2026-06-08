@@ -14,7 +14,7 @@ import { BarkMeter } from "@/components/battle/BarkMeter";
 import { VictoryScreen } from "@/components/battle/VictoryScreen";
 import { BattleState, BonusEvent, BONUS_CONFIG, BOT_CONFIG, BotDifficulty } from "@/types";
 import { calculateBotScore, calculateScore, rollRandomBonus } from "@/lib/scoring";
-import { playBotBark, playCountdownBeep, preloadBotBark } from "@/lib/barkSounds";
+import { playBotBark, playCountdownBeep, preloadBotBark, preloadCountdownBeep } from "@/lib/barkSounds";
 import toast from "react-hot-toast";
 
 const ROUND_DURATION = 10;
@@ -57,6 +57,7 @@ function BattleContent() {
   useEffect(() => {
     if (!hasHydrated) return;
     if (!user) { router.push("/login"); return; }
+    preloadCountdownBeep();
     start();
     return () => { stop(); cleanupRTC(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps

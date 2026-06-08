@@ -83,52 +83,49 @@ export function preloadBotBark(difficulty: BotDifficulty) {
 }
 
 // ------------------------------------------------------------------
-// Pre-match countdown beep — synthesized via the Web Audio API so we don't
-// depend on an external sound file. A short, clean blip on "3"/"2"/"1" and a
-// brighter, longer tone on "GO!" (count <= 0).
+// Pre-match countdown sound — plays a real audio clip on each tick of the
+// 3-2-1 countdown (and on "GO!"). Pooled the same way as bark clips so a
+// quick countdown can't cut its own previous tick off.
 // ------------------------------------------------------------------
 
-let sharedAudioCtx: AudioContext | null = null;
+const COUNTDOWN_SOURCE = "/sounds/countdown-beep.mp3";
+const COUNTDOWN_VOLUME = 0.6;
+const COUNTDOWN_POOL_SIZE = 4;
+let countdownPool: HTMLAudioElement[] | null = null;
 
-function getAudioContext(): AudioContext | null {
-  if (typeof window === "undefined") return null;
-  if (!sharedAudioCtx) {
-    const Ctor =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctor) return null;
-    sharedAudioCtx = new Ctor();
+function getCountdownPool(): HTMLAudioElement[] {
+  if (typeof window === "undefined") return [];
+  if (!countdownPool) {
+    countdownPool = Array.from({ length: COUNTDOWN_POOL_SIZE }, () => {
+      const audio = new Audio(COUNTDOWN_SOURCE);
+      audio.preload = "auto";
+      audio.volume = COUNTDOWN_VOLUME;
+      return audio;
+    });
   }
-  if (sharedAudioCtx.state === "suspended") void sharedAudioCtx.resume();
-  return sharedAudioCtx;
+  return countdownPool;
 }
 
 /**
- * Plays a short synthesized beep for the pre-match countdown. Pass the
- * current countdown number (3, 2, 1, 0) — the "0"/"GO!" tick gets a higher,
- * longer, more energetic tone so the start of the round feels distinct.
+ * Plays the countdown sound. Pass the current countdown number (3, 2, 1, 0) —
+ * the "0"/"GO!" tick plays a touch louder so the start of the round feels
+ * more energetic.
  */
 export function playCountdownBeep(count: number) {
-  const ctx = getAudioContext();
-  if (!ctx) return;
+  const pool = getCountdownPool();
+  if (!pool.length) return;
 
-  const isGo = count <= 0;
-  const freq = isGo ? 880 : 523.25;
-  const duration = isGo ? 0.35 : 0.16;
-  const peak = isGo ? 0.32 : 0.22;
-  const now = ctx.currentTime;
+  const el = pool.find((a) => a.paused || a.ended) ?? pool[0];
+  try {
+    el.currentTime = 0;
+    el.volume = count <= 0 ? Math.min(1, COUNTDOWN_VOLUME + 0.15) : COUNTDOWN_VOLUME;
+    void el.play().catch(() => {});
+  } catch {
+    // Autoplay/decoding hiccup — ignore, next tick will retry.
+  }
+}
 
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = "sine";
-  osc.frequency.setValueAtTime(freq, now);
-
-  gain.gain.setValueAtTime(0, now);
-  gain.gain.linearRampToValueAtTime(peak, now + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-  osc.start(now);
-  osc.stop(now + duration + 0.05);
+/** Preload the countdown clip so the very first "3" doesn't lag. */
+export function preloadCountdownBeep() {
+  getCountdownPool();
 }
