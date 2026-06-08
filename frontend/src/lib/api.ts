@@ -1,4 +1,5 @@
 import axios from "axios";
+import { useAuthStore } from "@/store/authStore";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -9,7 +10,10 @@ export const api = axios.create({
 
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
-    const token = localStorage.getItem("bark_token");
+    // Read straight from the zustand store (which is itself rehydrated from
+    // localStorage["bark-auth"]) so there's a single source of truth for the
+    // token instead of a second, easily-desynced localStorage key.
+    const token = useAuthStore.getState().token;
     if (token) config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -19,8 +23,12 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401 && typeof window !== "undefined") {
-      localStorage.removeItem("bark_token");
-      window.location.href = "/login";
+      // Clear the persisted session fully (store + localStorage) so the app
+      // doesn't think it's still logged in after a reload.
+      useAuthStore.getState().logout();
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(err);
   }

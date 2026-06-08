@@ -9,6 +9,8 @@ import { useAuthStore } from "@/store/authStore";
 import { authAPI } from "@/lib/api";
 import toast from "react-hot-toast";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
 function LoginContent() {
   const router = useRouter();
   const params = useSearchParams();
@@ -21,6 +23,12 @@ function LoginContent() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const loginWithProvider = (provider: "google" | "discord") => {
+    // Full-page redirect into the backend's OAuth flow — it'll bounce the
+    // user to Google/Discord, then back to /auth/callback?token=... on success.
+    window.location.href = `${API_URL}/auth/${provider}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -76,7 +84,11 @@ function LoginContent() {
           </div>
 
           <div className="space-y-3">
-            <button className="w-full flex items-center justify-center gap-3 bg-white/10 hover:bg-white/15 border border-white/20 text-white font-semibold py-3 px-4 rounded-xl transition-all">
+            <button
+              type="button"
+              onClick={() => loginWithProvider("google")}
+              className="w-full flex items-center justify-center gap-3 bg-white/10 hover:bg-white/15 border border-white/20 text-white font-semibold py-3 px-4 rounded-xl transition-all"
+            >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -86,7 +98,11 @@ function LoginContent() {
               Continuer avec Google
             </button>
 
-            <button className="w-full flex items-center justify-center gap-3 bg-[#5865F2]/20 hover:bg-[#5865F2]/30 border border-[#5865F2]/40 text-white font-semibold py-3 px-4 rounded-xl transition-all">
+            <button
+              type="button"
+              onClick={() => loginWithProvider("discord")}
+              className="w-full flex items-center justify-center gap-3 bg-[#5865F2]/20 hover:bg-[#5865F2]/30 border border-[#5865F2]/40 text-white font-semibold py-3 px-4 rounded-xl transition-all"
+            >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="#5865F2">
                 <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.1 18.08.114 18.1.136 18.11a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
               </svg>
