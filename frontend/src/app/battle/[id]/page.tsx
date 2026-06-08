@@ -24,7 +24,7 @@ function BattleContent() {
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, hasHydrated } = useAuthStore();
   const isBot = id.startsWith("bot-");
   const botDifficulty = (searchParams.get("difficulty") || "GUARD_DOG") as BotDifficulty;
 
@@ -51,13 +51,16 @@ function BattleContent() {
   // Keep battleRef in sync with current battle state
   useEffect(() => { battleRef.current = battle; }, [battle]);
 
-  // Init microphone on mount
+  // Init microphone on mount — wait for the persisted session to finish
+  // loading from localStorage first, otherwise a reload would redirect to
+  // /login before the existing session has a chance to restore.
   useEffect(() => {
+    if (!hasHydrated) return;
     if (!user) { router.push("/login"); return; }
     start();
     return () => { stop(); cleanupRTC(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [hasHydrated]);
 
   // Emit battle:join for online matches when socket connects
   useEffect(() => {

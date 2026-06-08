@@ -15,7 +15,7 @@ type Mode = "ranked" | "private" | "bot" | null;
 const DOTS = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 function MatchmakingContent() {
-  const { user } = useAuthStore();
+  const { user, hasHydrated } = useAuthStore();
   const router = useRouter();
   const params = useSearchParams();
   const [mode, setMode] = useState<Mode>((params.get("mode") as Mode) || null);
@@ -28,8 +28,9 @@ function MatchmakingContent() {
   const { isConnected, emit, on } = useSocket("/matchmaking");
 
   useEffect(() => {
+    if (!hasHydrated) return;
     if (!user) router.push("/login");
-  }, [user, router]);
+  }, [user, hasHydrated, router]);
 
   // Waiting animation
   useEffect(() => {
@@ -83,7 +84,7 @@ function MatchmakingContent() {
     router.push(`/battle/bot-${Date.now()}?difficulty=${botDifficulty}`);
   }, [router, botDifficulty]);
 
-  if (!user) return null;
+  if (!hasHydrated || !user) return null;
 
   return (
     <div className="min-h-screen">

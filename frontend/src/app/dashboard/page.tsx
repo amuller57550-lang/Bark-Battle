@@ -32,18 +32,21 @@ function StatCard({ icon: Icon, label, value, sub, color = "#f97316" }: {
 }
 
 export default function DashboardPage() {
-  const { user } = useAuthStore();
+  const { user, hasHydrated } = useAuthStore();
   const router = useRouter();
   const [recentMatches, setRecentMatches] = useState<Match[]>([]);
 
   useEffect(() => {
+    // Wait for the persisted session to load from localStorage before
+    // deciding the user is logged out — otherwise every reload bounces to /login.
+    if (!hasHydrated) return;
     if (!user) { router.push("/login"); return; }
     matchesAPI.getHistory(1, 5)
       .then(({ data }) => setRecentMatches(data.matches || []))
       .catch(() => {});
-  }, [user, router]);
+  }, [user, hasHydrated, router]);
 
-  if (!user) return null;
+  if (!hasHydrated || !user) return null;
 
   const leagueConfig = getLeagueConfig(user.league);
   const leagueProgress = user.rp - leagueConfig.minRP;
