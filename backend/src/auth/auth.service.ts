@@ -46,12 +46,12 @@ export class AuthService {
     return { access_token: token, user: this.sanitize(user) };
   }
 
-  // Find-or-create flow for Google/Discord logins. Matches an existing account
-  // by provider id first, then by email (so a player who registered with
-  // email+password can later link a social account), and only creates a brand
-  // new account as a last resort.
+  // Find-or-create flow for Google logins. Matches an existing account by
+  // provider id first, then by email (so a player who registered with
+  // email+password can later link their Google account), and only creates a
+  // brand new account as a last resort.
   async loginWithOAuth(profile: OAuthProfile) {
-    const idField = profile.provider === 'google' ? 'googleId' : 'discordId';
+    const idField = 'googleId' as const;
     const include = { badges: { include: { badge: true } } };
 
     let user = await this.prisma.user.findFirst({

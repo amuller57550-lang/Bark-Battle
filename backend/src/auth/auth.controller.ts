@@ -64,20 +64,6 @@ export class AuthController {
     await this.finishOAuth(req.user, res);
   }
 
-  // --- Discord OAuth ---
-
-  @Get('discord')
-  @UseGuards(AuthGuard('discord'))
-  discordAuth() {
-    // Passport redirects to Discord's consent screen; nothing to do here.
-  }
-
-  @Get('discord/callback')
-  @UseGuards(AuthGuard('discord'))
-  async discordCallback(@Request() req, @Res() res: Response) {
-    await this.finishOAuth(req.user, res);
-  }
-
   private async finishOAuth(profile: OAuthProfile, res: Response) {
     const frontendUrl = this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
     try {
