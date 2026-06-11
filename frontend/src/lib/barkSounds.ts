@@ -82,50 +82,54 @@ export function preloadBotBark(difficulty: BotDifficulty) {
   getPool(difficulty);
 }
 
+/**
+ * Stop any bark clip currently playing for the given bot — used when a
+ * battle ends so a bark that started just before the end doesn't keep
+ * playing into the victory/defeat screen.
+ */
+export function stopBotBark(difficulty: BotDifficulty) {
+  const pool = pools[difficulty];
+  if (!pool) return;
+  for (const el of pool) {
+    el.pause();
+    el.currentTime = 0;
+  }
+}
+
 // ------------------------------------------------------------------
-// Pre-match countdown sound — plays a real audio clip on each tick of the
-// 3-2-1 countdown (and on "GO!"). Pooled the same way as bark clips so a
-// quick countdown can't cut its own previous tick off.
+// Pre-match countdown sound — plays once when the countdown starts. The clip
+// itself covers the whole "3, 2, 1" sequence, so it must only be triggered a
+// single time (triggering it again on later ticks would overlap/restart it
+// and bleed into the battle).
 // ------------------------------------------------------------------
 
 const COUNTDOWN_SOURCE = "/sounds/countdown-beep.mp3";
 const COUNTDOWN_VOLUME = 0.6;
-const COUNTDOWN_POOL_SIZE = 4;
-let countdownPool: HTMLAudioElement[] | null = null;
+let countdownAudio: HTMLAudioElement | null = null;
 
-function getCountdownPool(): HTMLAudioElement[] {
-  if (typeof window === "undefined") return [];
-  if (!countdownPool) {
-    countdownPool = Array.from({ length: COUNTDOWN_POOL_SIZE }, () => {
-      const audio = new Audio(COUNTDOWN_SOURCE);
-      audio.preload = "auto";
-      audio.volume = COUNTDOWN_VOLUME;
-      return audio;
-    });
+function getCountdownAudio(): HTMLAudioElement | null {
+  if (typeof window === "undefined") return null;
+  if (!countdownAudio) {
+    countdownAudio = new Audio(COUNTDOWN_SOURCE);
+    countdownAudio.preload = "auto";
+    countdownAudio.volume = COUNTDOWN_VOLUME;
   }
-  return countdownPool;
+  return countdownAudio;
 }
 
-/**
- * Plays the countdown sound. Pass the current countdown number (3, 2, 1, 0) —
- * the "0"/"GO!" tick plays a touch louder so the start of the round feels
- * more energetic.
- */
-export function playCountdownBeep(count: number) {
-  const pool = getCountdownPool();
-  if (!pool.length) return;
-
-  const el = pool.find((a) => a.paused || a.ended) ?? pool[0];
+/** Plays the pre-match countdown clip once, from the start. */
+export function playCountdownBeep() {
+  const audio = getCountdownAudio();
+  if (!audio) return;
   try {
-    el.currentTime = 0;
-    el.volume = count <= 0 ? Math.min(1, COUNTDOWN_VOLUME + 0.15) : COUNTDOWN_VOLUME;
-    void el.play().catch(() => {});
+    audio.currentTime = 0;
+    void audio.play().catch(() => {});
   } catch {
-    // Autoplay/decoding hiccup — ignore, next tick will retry.
+    // Autoplay/decoding hiccup — ignore.
   }
 }
 
-/** Preload the countdown clip so the very first "3" doesn't lag. */
+/** Preload the countdown clip so it doesn't lag on the very first match. */
 export function preloadCountdownBeep() {
-  getCountdownPool();
+  getCountdownAudio();
 }
